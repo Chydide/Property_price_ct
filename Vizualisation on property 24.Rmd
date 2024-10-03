@@ -1,0 +1,151 @@
+---
+title: "Property price analysis"
+author: "C Chinogurei"
+date: "2024-09-21"
+output: 
+  prettydoc::html_pretty:
+    theme: cayman
+    toc: yes
+    css: div.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(knitr)
+library(rvest)
+library(kableExtra)
+
+load("C:/Users/01452743.WF/OneDrive - University of Cape Town/Personal projects/Property 24/full_df.RData")
+
+full_df$price <- as.numeric(gsub('R', '',full_df$price))
+full_df$size <- as.numeric(gsub(' m²','',full_df$size))
+full_df$bedroom <- as.integer(full_df$bedroom)
+full_df <- full_df %>%
+                       mutate(lct= case_when(location %in% c('Bantry Bay','Camps Bay','Clifton','Fresnaye','Green Point','Hout Bay Beachfront','Hout Bay Harbour','Llandudno','Mouille Point','Sea Point','Three Anchor Bay','Waterfront')~ 'Atlantic Seaboard',
+                                             location %in% c('Athlone','Bishop Lavis','Bonteheuwel','Crawford','Crossroads','Epping','Gugulethu','Hanover Park','Kalksteenfontein','Khayelitsha','Langa','Lavender Hill','Manenberg','Mitchells Plain','Nyanga','Ottery','Ferness Estate','Ferndale','Ottery East','Pelican Park','Philippi','Samora Machel','Strandfontein','Valhalla Park','Delft','Belhar',"Elsie's River")~'Cape Flats (South East suburbs)',
+                                             location %in% c('Bo Kaap','Cape Town City Centre',"Devil's Peak Estate",'Van Ryneveld','De Waterkant','Foreshore','Gardens','Higgovale','Lower Vrede','District Six','Oranjezicht','Salt River','Schotsche Kloof','Tamboerskloof','University Estate','Vredehoek','Walmer Estate','Woodstock','Upper Woodstock','Zonnebloem')~'City Bowl',
+                                             location %in% c('Kuils River','Kuils River South','Bardale Village','Eersterivier','Stratford Green','Blue Downs','Blackheath','Firgove',"Gordon's Bay",'Macassar','Croydon',"Sir Lowry's Pass Village",'Somerset West','Somerset West Central','Strand','Strand Central','Strand North','Strand South')~'Eastern Suburbs',
+                                             location %in% c('Bellville','Bellville Central','Bellville South','Buh Rein Estate','Protea Heights','Tyger Waterfront','Vredekloof','Vredekloof East','Vredekloof Heights','Tyger Valley','Protea Village','Brackenfell','Brackenfell Central','Brackenfell Industrial','Brackenfell South','Oakglen','Groenvallei','Soneike','Bothasig','Brooklyn','Burgundy Estate','Durbanville','Durbanville Central','Sonstraal Heights','Sonstraal','Edgemead','Goodwood','Goodwood Central','Goodwood Estate','Townsend Estate','Vasco Estate','Kensington','Kraaifontein','Kraaifontein East','Windsor Park Estate','Zonnendal','Loevenstein','Maitland','Monte Vista','Welgelegen','Panorama','Parow Central','Thornton','Parow','Plattekloof','Rugby')~'Northern Suburbs',
+                                             location %in% c('Bergvliet','Bishopscourt','Claremont','Claremont Upper','Constantia','Capricorn','Costa Da Gama','Diep River','Grassy Park','Harfield Village','Heathfield','Kenilworth','Kenilworth Upper','Kenwyn','Kirstenhof','Kreupelbosch','Lansdowne','Lotus River','Meadowridge','Mowbray','Ndabeni','Newlands','Observatory','Pinelands','Plumstead','Retreat','Rondebosch','Rondebosch East','Rosebank','Southfield','Steenberg','Sybrand Park','Tokai','Wynberg','Wetton','Capri Village','Clovelly','Fish Hoek','Glencairn','Kalk Bay','Kommetjie','Lakeside','Marina da Gama','Masiphumelele','Muizenberg','Noordhoek','Ocean View','Scarborough',"Simon's Town",'St James','Sunnydale','Sun Valley','Vrygrond','Wynberg Upper','Whispering Pines')~'Southern Suburbs',
+                                             location %in% c('Atlantis','Beachfront','Big Bay','Bloubergstrand','Bloubergrant','Blouberg Sands','Blouberg Rise','Century City','Tijgerhof','Flamingo Vlei','Island View','Mamre','Melkbosstrand','Milnerton','Milnerton Central','Royal Ascot','Montague Gardens','Richwood','Parklands','Parklands East','Parklands North','Table View','Sandown','Summer Greens','West Beach','Waves Edge','Woodbridge Island')~'West Coast Suburbs'
+                                             ,.default="Outside Cape Town")
+                    )
+
+property_data <- full_df
+property_data$Area_Categorized <- cut(
+  property_data$size,
+  breaks = c(0, 150, 300, 500, Inf),
+  labels = c("Low size Area", "Mid size Area", "High size Area", "Luxury Area"),
+  include.lowest = TRUE
+)
+```
+
+## Introduction
+
+In Cape Town, property prices vary significantly by neighborhood, with some areas being more expensive than others. The most expensive areas include Camps Bay, Clifton, Constantia, and parts of the City Bowl like Oranjezicht. These areas offer luxury homes, ocean views, exclusivity, and proximity to amenities, driving their high property values.
+
+More affordable neighborhoods can be found in the South Peninsula, such as Muizenberg and Fish Hoek, and in the Northern Suburbs like Brackenfell and Bellville. These areas offer family-friendly environments with good infrastructure and are popular among first-time homebuyers seeking more reasonably priced properties.
+
+The differences in property prices are largely influenced by factors like location, amenities, lifestyle appeal, and scenic views. The luxury offerings and exclusivity of areas like the Atlantic Seaboard lead to higher prices, while inland or suburban areas provide more budget-friendly housing options.
+
+# Quick summary
+
+In Cape Town, property prices range widely, from as low as R299,000 in more affordable areas to as high as R53 million in the city's most luxurious neighborhoods, with the average price around R4.2 million. This large variation is influenced by a combination of factors such as location, proximity to natural attractions, socio-economic status, and the amenities available in each area.
+
+```{r, echo=FALSE}
+kable(summary(property_data%>%
+                mutate(area = factor(lct),
+                       location =factor(location))%>%
+                       select(-lct)%>%
+                arrange(location, area, Area_Categorized, bedroom, size)
+              )
+      
+      )
+```
+The data reveals significant variation in average property prices, number of bedrooms, and erf sizes across different areas of Cape Town. The Atlantic Seaboard is the most expensive area, with an average price of around R18.8 million, and typically offers larger homes (4.2 bedrooms) on relatively smaller plots (497.7 sqm). In contrast, the Cape Flats is one of the most affordable regions, with an average property price of R1.5 million, generally featuring smaller homes (3.4 bedrooms) and plots (299.6 sqm).
+
+
+
+```{r cars, echo=FALSE}
+
+# Grouped statistics by Area
+property_summary <- property_data %>%
+  mutate(area = factor(lct),
+                       location =factor(location))%>%
+                       select(-lct)%>%
+  group_by(area) %>%
+  summarise(
+    avg_price = mean(price, na.rm = TRUE),
+    avg_bedrooms = mean(bedroom, na.rm = TRUE),
+    avg_erf_size = mean(size, na.rm = TRUE),
+    count = n()
+  )
+
+
+
+# Show the summary table
+kable(property_summary)
+```
+
+Areas like the City Bowl and Southern Suburbs have mid-to-high average prices, at R6.1 million and R6.14 million respectively, with similar average erf sizes around 279-470 sqm. The Northern Suburbs and West Coast Suburbs also provide more moderately priced properties, with averages ranging from R2.88 million to R3.85 million, generally featuring plots between 396 and 461 sqm.
+
+The largest average erf sizes are found in properties outside Cape Town (499.2 sqm) and in the Atlantic Seaboard area, while the Cape Flats and City Bowl have some of the smallest plots. This table highlights that higher property prices are often associated with prime locations and views, such as the Atlantic Seaboard, whereas more affordable properties can be found in suburban or less centrally located areas, such as the Cape Flats and Northern Suburbs.
+
+```{r, echo= FALSE, warning=FALSE}
+
+property_data <- property_data %>%
+  mutate(area = factor(lct),
+                       location =factor(location))%>%
+                       select(-lct)
+
+price_list <- split(property_data$price, property_data$area)
+bedroom_list <- split(property_data$bedroom, property_data$area)
+size_list <- split(property_data$size, property_data$area)
+
+inline_plot <- data.frame(location = c("Atlantic Seaboard", "Cape Flats (South East suburbs)", "City Bowl","Eastern Suburbs","Northern Suburbs","Southern Suburbs","West Coast Suburbs"), price_box = "", bedroom_hist = "",
+                          size_line1 = "")
+
+inline_plot %>%
+  kbl(booktabs = TRUE) %>%
+  kable_paper(full_width = TRUE) %>%
+  column_spec(2, image = spec_boxplot(price_list)) %>%
+  column_spec(3, image = spec_hist(bedroom_list)) %>%
+  column_spec(4, image = spec_plot(size_list, same_lim = TRUE))
+```
+
+## What price margin can you expect depending on your home preferences?
+
+```{r pressure, echo=FALSE, warning=FALSE, fig.height=9, fig.width=10}
+# Boxplot of price distribution by area
+ggplot(property_data, aes(x = Area_Categorized, y = price)) +
+  geom_violin(aes(fill=Area_Categorized)) +
+  scale_y_continuous(labels = scales::comma,limits=c(200000,8000000))+
+  theme_classic() +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank())+
+  facet_wrap(~area)+
+  labs(title = "Price Distribution by Area", fill = "Size", y = "Price in Rands")
+```
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Scatterplot of price vs. number of bedrooms
+ggplot(property_data, aes(x = bedroom, y = price,color = area)) +
+  geom_point(position = position_dodge(0.9), alpha = 0.1) +
+  geom_smooth(method = "lm", se = T, size=1.2) +
+  scale_y_continuous(labels = scales::comma,limits=c(200000,8000000))+
+  scale_x_continuous(limits=c(0,12), n.breaks=12)+
+  theme_minimal() +
+  labs(title = "Price vs. Number of Bedrooms", x = "Number of Bedrooms", y = "Price", color="Location")
+```
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(property_data, aes(x = size, y = price,color = area)) +
+  geom_point( alpha = 0.1) +
+  geom_smooth(method = "lm", se = T) +
+  scale_y_continuous(labels = scales::comma,limits=c(200000,8000000))+
+  theme_minimal() +
+  labs(title = "Price vs. Erf Size", x = "Erf Size (square meters)", y = "Price", color= "Location")
+```
+
+
